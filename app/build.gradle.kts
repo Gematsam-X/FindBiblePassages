@@ -11,8 +11,8 @@ android {
         applicationId = "it.gematsamx.findbiblepassages"
         minSdk = 28
         targetSdk = 35
-        versionCode = 5
-        versionName = "3.4.1"
+        versionCode = 6
+        versionName = "3.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -58,7 +58,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.okhttp)
     implementation(libs.androidx.espresso.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

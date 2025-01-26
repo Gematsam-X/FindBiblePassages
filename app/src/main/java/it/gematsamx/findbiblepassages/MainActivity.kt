@@ -96,7 +96,8 @@ fun FindBibleBooksApp() {
 
 
         // Regex per catturare: "gen 3 5", "gen 3:5", "gen 3.5"
-        val regex = Regex("""^(\d*\s?\p{L}+)\s*(\d+)?[\s:;.]?(\d+)?""")
+        val regex = Regex("""^(\d*\s?\p{L}(?:[\p{L}\s]+)?)\s*(\d+)?[\s:.]?(\d+)?""")
+
         val matchResult = regex.find(input.trim())
 
         if (matchResult != null) {
@@ -136,12 +137,9 @@ fun FindBibleBooksApp() {
                         }
                     }
                 }
-                matchingBooks.isNotEmpty() -> {
-                    outputText = "Il testo non è sufficiente, sii più specifico. Si intendeva forse: ${matchingBooks.joinToString(" - ")}"
-                }
-                else -> {
-                    outputText = "Il passo biblico non è stato trovato. Controlla di averlo scritto correttamente!"
-                }
+                matchingBooks.isNotEmpty() -> outputText = "Il testo non è sufficiente, sii più specifico. Si intendeva forse: ${matchingBooks.joinToString(" - ")}"
+                else -> outputText = "Il passo biblico non è stato trovato. Controlla di averlo scritto correttamente!"
+
             }
         } else {
             outputText = "Formato non riconosciuto. Usa ad esempio: 'gen 3:5', 'eso 4 5', 'mat 2.4'."
@@ -192,10 +190,17 @@ fun removeAccents(input: String): String {
 
 // Funzione di normalizzazione dell'input
 fun normalizeInput(input: String): String {
-    return removeAccents(input)
+    val synonymMap = mapOf(
+        "salmo" to "salmi",
+        "apocalisse" to "rivelazione",
+        "qoelet" to "ecclesiaste",
+    )
+    val normalized = removeAccents(input)
         .replace(Regex("\\s+"), "") // Rimuove spazi
         .lowercase() // Converte tutto in minuscolo
         .trim()
+    val updated = synonymMap.getOrDefault(normalized, normalized)
+    return updated
 }
 
 // Funzione per formattare il capitolo
