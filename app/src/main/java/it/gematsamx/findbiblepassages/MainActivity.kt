@@ -3,6 +3,7 @@ package it.gematsamx.findbiblepassages
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.border
@@ -75,41 +76,48 @@ fun FindBibleBooksApp() {
     fun checkBibleBook(input: String) {
         fun openLink(link: String) {
             val packageName = "org.jw.jwlibrary.mobile"
-            val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-    
-            if (intent != null) {
-                val appIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
-                appIntent.setPackage(packageName)
-                context.startActivity(appIntent)
-            } else {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+                // Forza il targeting di JW Library
+                setPackage(packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback: se JW Library non è installata, apri il link in un browser
+                Toast.makeText(context, "JW Library non è installata sul dispositivo. Apro il link nel browser.", Toast.LENGTH_SHORT).show()
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 context.startActivity(browserIntent)
             }
         }
-    
+
+
         // Regex per catturare: "gen 3 5", "gen 3:5", "gen 3.5"
         val regex = Regex("""^(\d*\s?\p{L}+)\s*(\d+)?[\s:;.]?(\d+)?""")
         val matchResult = regex.find(input.trim())
-    
+
         if (matchResult != null) {
             val bookInput = matchResult.groupValues[1]
             val chapterInput = matchResult.groupValues.getOrNull(2)
             val verseInput = matchResult.groupValues.getOrNull(3)
-    
+
             val normalizedBookInput = normalizeInput(bookInput)
             val matchingBooks = bibleBooks.filter {
                 normalizeInput(it).startsWith(normalizedBookInput)
             }
-    
+
             when {
                 matchingBooks.size == 1 -> {
                     val bookName = matchingBooks[0]
                     val bookNumber = getBookNumber(bookName)
-    
+
                     if (bookNumber != null) {
                         val chapterNumber = chapterInput?.toIntOrNull()
                         val verseNumber = verseInput?.toIntOrNull()
-    
+
                         if (chapterInput.isNullOrBlank()) {
                             val link = "https://www.jw.org/finder?wtlocale=I&prefer=lang&book=$bookNumber&pub=nwtsty"
                             openLink(link)
@@ -118,7 +126,7 @@ fun FindBibleBooksApp() {
                         } else {
                             val formattedChapter = formatChapterNumber(chapterNumber)
                             val formattedVerse = verseNumber?.let { formatVerseNumber(it) } ?: ""
-    
+
                             val link = if (formattedVerse.isNotEmpty()) {
                                 "https://www.jw.org/finder?wtlocale=I&prefer=lang&bible=${bookNumber}${formattedChapter}${formattedVerse}&pub=nwtsty"
                             } else {
@@ -139,7 +147,7 @@ fun FindBibleBooksApp() {
             outputText = "Formato non riconosciuto. Usa ad esempio: 'gen 3:5', 'eso 4 5', 'mat 2.4'."
         }
     }
-    
+
 
     Column(
         modifier = Modifier
@@ -147,7 +155,7 @@ fun FindBibleBooksApp() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "FindBibleBooks - Trova Passi Biblici", style = MaterialTheme.typography.titleLarge)
+        Text(text = "FindBiblePassages - Trova Passi Biblici", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(20.dp))
         BasicTextField(
             value = textState,
