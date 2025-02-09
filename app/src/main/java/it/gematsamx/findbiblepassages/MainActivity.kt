@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +17,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import java.text.Normalizer
@@ -24,7 +27,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            FindBibleBooksApp()
+            FindBibleBooksTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    FindBibleBooksApp()
+                }
+            }
         }
     }
 }
@@ -33,7 +40,7 @@ class MainActivity : ComponentActivity() {
 fun FindBibleBooksApp() {
     var textState by remember { mutableStateOf(TextFieldValue()) }
     var outputText by remember { mutableStateOf("Digita il libro biblico ed eventualmente il capitolo e il versetto nel campo qua sopra per trovarlo più velocemente. Verrai reindirizzato automaticamente.") }
-    val context = LocalContext.current // Prendiamo il contesto
+    val context = LocalContext.current
 
     val bibleBooks = listOf(
         "Genesi", "Esodo", "Levitico", "Numeri", "Deuteronomio",
@@ -60,24 +67,19 @@ fun FindBibleBooksApp() {
         "Giuda", "Rivelazione"
     )
 
-    // Funzione che restituisce il numero di un libro nella lista
     fun getBookNumber(bookName: String): String? {
         val index = bibleBooks.indexOf(bookName)
         return if (index != -1) {
-            // La numerazione parte da 01 (Genesi è 01, Esodo è 02, ...)
-            val bookNumber = (index + 1).toString().padStart(2, '0')
-            bookNumber
+            (index + 1).toString().padStart(2, '0')
         } else {
             null
         }
     }
 
-    // Funzione che verifica il libro biblico e costruisce il link dinamico
     fun checkBibleBook(input: String) {
         fun openLink(link: String) {
             val packageName = "org.jw.jwlibrary.mobile"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
-                // Forza il targeting di JW Library
                 setPackage(packageName)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
@@ -85,7 +87,6 @@ fun FindBibleBooksApp() {
             try {
                 context.startActivity(intent)
             } catch (e: Exception) {
-                // Fallback: se JW Library non è installata, apri il link in un browser
                 Toast.makeText(context, "JW Library non è installata sul dispositivo. Apro il link nel browser.", Toast.LENGTH_SHORT).show()
                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -94,10 +95,7 @@ fun FindBibleBooksApp() {
             }
         }
 
-
-        // Regex per catturare: "gen 3 5", "gen 3:5", "gen 3.5"
         val regex = Regex("""^(\d*\s?\p{L}(?:[\p{L}\s]+)?)\s*(\d+)?[\s:.]?(\d+)?""")
-
         val matchResult = regex.find(input.trim())
 
         if (matchResult != null) {
@@ -119,33 +117,33 @@ fun FindBibleBooksApp() {
                         val chapterNumber = chapterInput?.toIntOrNull()
                         val verseNumber = verseInput?.toIntOrNull()
 
-                        if (chapterInput.isNullOrBlank()) {
-                            val link = "https://www.jw.org/finder?wtlocale=I&prefer=lang&book=$bookNumber&pub=nwtsty"
-                            openLink(link)
-                        } else if (chapterNumber == null || chapterNumber <= 0) {
-                            outputText = "Il capitolo deve essere un numero valido maggiore di 0."
-                        } else {
-                            val formattedChapter = formatChapterNumber(chapterNumber)
-                            val formattedVerse = verseNumber?.let { formatVerseNumber(it) } ?: ""
-
-                            val link = if (formattedVerse.isNotEmpty()) {
-                                "https://www.jw.org/finder?wtlocale=I&prefer=lang&bible=${bookNumber}${formattedChapter}${formattedVerse}&pub=nwtsty"
-                            } else {
-                                "https://www.jw.org/finder?wtlocale=I&prefer=lang&bible=${bookNumber}${formattedChapter}000-${bookNumber}${formattedChapter}999&pub=nwtsty"
+                        val link = when {
+                            chapterInput.isNullOrBlank() -> "https://www.jw.org/finder?wtlocale=I&prefer=lang&book=$bookNumber&pub=nwtsty"
+                            chapterNumber == null || chapterNumber <= 0 -> {
+                                outputText = "Il capitolo deve essere un numero valido maggiore di 0."
+                                return
                             }
-                            openLink(link)
+                            else -> {
+                                val formattedChapter = formatChapterNumber(chapterNumber)
+                                val formattedVerse = verseNumber?.let { formatVerseNumber(it) } ?: ""
+
+                                if (formattedVerse.isNotEmpty()) {
+                                    "https://www.jw.org/finder?wtlocale=I&prefer=lang&bible=${bookNumber}${formattedChapter}${formattedVerse}&pub=nwtsty"
+                                } else {
+                                    "https://www.jw.org/finder?wtlocale=I&prefer=lang&bible=${bookNumber}${formattedChapter}000-${bookNumber}${formattedChapter}999&pub=nwtsty"
+                                }
+                            }
                         }
+                        openLink(link)
                     }
                 }
                 matchingBooks.isNotEmpty() -> outputText = "Il testo non è sufficiente, sii più specifico. Si intendeva forse: ${matchingBooks.joinToString(" - ")}"
                 else -> outputText = "Il passo biblico non è stato trovato. Controlla di averlo scritto correttamente!"
-
             }
         } else {
             outputText = "Formato non riconosciuto. Usa ad esempio: 'gen 3:5', 'eso 4 5', 'mat 2.4'."
         }
     }
-
 
     Column(
         modifier = Modifier
@@ -158,23 +156,30 @@ fun FindBibleBooksApp() {
         BasicTextField(
             value = textState,
             onValueChange = {
-                textState = it // Aggiorniamo solo lo stato del campo di testo, senza fare la ricerca
+                textState = it
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp)
                 .padding(10.dp)
-                .border(1.dp, MaterialTheme.colorScheme.primary),
+                .border(1.dp, MaterialTheme.colorScheme.secondary),
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 30.sp)
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 30.sp,
+                color= MaterialTheme.colorScheme.primary
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         )
         Spacer(modifier = Modifier.height(10.dp))
         Button(
             onClick = {
-                // Si attiva la ricerca quando viene cliccato il tasto "Cerca"
                 checkBibleBook(textState.text)
             },
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary, // Colore di sfondo del bottone
+                contentColor = MaterialTheme.colorScheme.primary, // Colore del testo
+        )
         ) {
             Text("Cerca")
         }
@@ -183,46 +188,87 @@ fun FindBibleBooksApp() {
     }
 }
 
+@Composable
+fun FindBibleBooksTheme(content: @Composable () -> Unit) {
+    val darkTheme = isSystemInDarkTheme()
+    val colorScheme = if (darkTheme) {
+        darkColorScheme(
+            primary = Color(0xfff4f4f9),
+            secondary = Color(0xff704CC7),
+            tertiary = Color(0xff704CC7),
+            background = Color(0xff1c1c1c),
+        )
+    } else {
+        lightColorScheme(
+            primary = Color(0xff1c1c1c),
+            secondary = Color(0xFF6604D3),
+            tertiary = Color(0xFFA374EE),
+            background = Color(0xfff4f4f9)
+        )
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography(),
+        content = content
+    )
+}
+
+fun normalizeInput(input: String): String {
+    val normalized = removeAccents(input)
+        .replace(Regex("\\s+"), "")
+        .lowercase()
+        .trim()
+    return normalized.replaceNames().replaceWrittenNumbers()
+}
+
+fun String.replaceWrittenNumbers(): String {
+    val numericMap = mapOf(
+        "primo" to "1", "prima" to "1",
+        "secondo" to "2", "seconda" to "2",
+        "terzo" to "3", "terza" to "3"
+    )
+
+    var result = this
+    numericMap.forEach { (text, number) ->
+        result = result.replace(text, number, ignoreCase = true)
+    }
+    return result
+}
+
+fun String.replaceNames(): String {
+    val namesToReplace = mapOf(
+        "salmo" to "salmi",
+        "apocalisse" to "rivelazione",
+        "qoelet" to "ecclesiaste",
+        "librodeire" to "re",
+        "corinzi" to "corinti"
+    )
+
+    var result = this
+    namesToReplace.forEach { (text, name) ->
+        result = result.replace(text, name, ignoreCase = true)
+    }
+    return result
+}
+
 fun removeAccents(input: String): String {
     return Normalizer.normalize(input, Normalizer.Form.NFD)
         .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
 }
 
-// Funzione di normalizzazione dell'input
-fun normalizeInput(input: String): String {
-    val synonymMap = mapOf(
-        "salmo" to "salmi",
-        "apocalisse" to "rivelazione",
-        "qoelet" to "ecclesiaste",
-    )
-    val normalized = removeAccents(input)
-        .replace(Regex("\\s+"), "") // Rimuove spazi
-        .lowercase() // Converte tutto in minuscolo
-        .trim()
-    val updated = synonymMap.getOrDefault(normalized, normalized)
-    return updated
-}
-
-// Funzione per formattare il capitolo
 fun formatChapterNumber(chapter: Int): String {
-    return when {
-        chapter < 10 -> "00$chapter"
-        chapter < 100 -> "0$chapter"
-        else -> chapter.toString()
-    }
+    return chapter.toString().padStart(3, '0')
 }
 
-// Funzione per formattare il versetto
 fun formatVerseNumber(verse: Int): String {
-    return when {
-        verse < 10 -> "00$verse"
-        verse < 100 -> "0$verse"
-        else -> verse.toString()
-    }
+    return verse.toString().padStart(3, '0')
 }
 
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
-    FindBibleBooksApp()
+    FindBibleBooksTheme {
+        FindBibleBooksApp()
+    }
 }
