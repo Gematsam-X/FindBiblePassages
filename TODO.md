@@ -1,0 +1,1 @@
+- [ ] Add a CLEAN button next to the main button. The clean button shall be smaller than the main button
